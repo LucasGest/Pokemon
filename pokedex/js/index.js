@@ -5,33 +5,7 @@ const lightbox = document.getElementById("lightbox");
 const lightboxTitle = document.getElementById("lightbox-title");
 const lightboxDescription = document.getElementById("lightbox-description");
 
-async function fetchPokemon(id) {
-  let response = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
-  let data = await response.json();
-
-  let speciesResponse = await fetch(data.species.url);
-  let speciesData = await speciesResponse.json();
-  let nameFr = speciesData.names.find((n) => n.language.name === "fr").name;
-  let description =
-    speciesData.flavor_text_entries
-      .find((entry) => entry.language.name === "fr")
-      ?.flavor_text.replace(/\n/g, " ") || "Pas de description disponible.";
-  let isLegendary = speciesData.is_legendary ? "Légendaire" : "Non légendaire";
-  let types = data.types.map((t) => traduireType(t.type.name)).join(", ");
-  let region = document.querySelector(
-    `#generation-select option[value='${generationSelect.value}']`
-  ).textContent;
-
-  return {
-    id: id,
-    name: nameFr,
-    image: data.sprites.front_default,
-    legendary: isLegendary,
-    description: description,
-    types: types,
-    region: region,
-  };
-}
+let allPokemons = []; // liste en mémoire pour éviter de recharger
 
 function traduireType(type) {
   const typesFR = {
@@ -57,49 +31,43 @@ function traduireType(type) {
   return typesFR[type] || type;
 }
 
-async function loadPokemons(gen) {
-  container.innerHTML = "";
-  let [start, end] = getGenerationRange(gen);
+async function fetchPokemon(id) {
+  try {
+    const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
+    const data = await res.json();
 
-  for (let i = start; i <= end; i++) {
-    let pokemon = await fetchPokemon(i);
+    const speciesRes = await fetch(data.species.url);
+    const speciesData = await speciesRes.json();
 
-    let div = document.createElement("div");
-    div.classList.add("pokemon");
-    div.innerHTML = `
-      <img src="${pokemon.image}" alt="${pokemon.name}">
-      <p><strong>#${pokemon.id.toString().padStart(3, "0")} - ${
-      pokemon.name
-    }</strong></p>
-      <button onclick="openLightbox(
-        '${pokemon.id}',
-        '${pokemon.name}',
-        '${pokemon.types}',
-        '${pokemon.region}',
-        '${pokemon.legendary}',
-        '${pokemon.description.replace(/'/g, "&apos;")}'
-      )">
-        En savoir plus
-      </button>
-    `;
+    const nameFr =
+      speciesData.names.find((n) => n.language.name === "fr")?.name ||
+      data.name;
+    const description =
+      speciesData.flavor_text_entries
+        .find((entry) => entry.language.name === "fr")
+        ?.flavor_text.replace(/\n/g, " ") || "Description non disponible.";
 
-    container.appendChild(div);
+    const isLegendary = speciesData.is_legendary
+      ? "Légendaire"
+      : "Non légendaire";
+    const types = data.types.map((t) => traduireType(t.type.name)).join(", ");
+    const region = document.querySelector(
+      `#generation-select option[value='${generationSelect.value}']`
+    ).textContent;
+
+    return {
+      id: id,
+      name: nameFr,
+      image: data.sprites.front_default,
+      legendary: isLegendary,
+      description: description,
+      types: types,
+      region: region,
+    };
+  } catch (error) {
+    console.error("Erreur fetchPokemon:", error);
+    return null;
   }
-}
-
-function openLightbox(id, name, types, region, legendary, description) {
-  lightboxTitle.textContent = `#${id.toString().padStart(3, "0")} - ${name}`;
-  lightboxDescription.innerHTML = `
-    <strong>Type:</strong> ${types}<br>
-    <strong>Région:</strong> ${region}<br>
-    <strong>Statut:</strong> ${legendary}<br>
-    <strong>Description:</strong> ${description}
-  `;
-  lightbox.style.display = "flex";
-}
-
-function closeLightbox() {
-  lightbox.style.display = "none";
 }
 
 function getGenerationRange(gen) {
@@ -117,14 +85,80 @@ function getGenerationRange(gen) {
   return ranges[gen] || [1, 151];
 }
 
-searchInput.addEventListener("input", () =>
-  loadPokemons(generationSelect.value)
-);
-generationSelect.addEventListener("change", () =>
-  loadPokemons(generationSelect.value)
-);
+function displayPokemons(list) {
+  container.innerHTML = "";
 
+  if (list.length === 0) {
+    container.innerHTML = `<p class="no-results">Aucun Pokémon trouvé.</p>`;
+    return;
+  }
+
+  list.forEach((pokemon) => {
+    const div = document.createElement("div");
+    div.classList.add("pokemon");
+    div.innerHTML = `
+      <img src="${pokemon.image}" alt="${pokemon.name}">
+      <p><strong>#${pokemon.id} ${pokemon.name}</strong></p>
+      <button onclick="openLightbox('${pokemon.name}', '${pokemon.types}', '${
+      pokemon.region
+    }', '${pokemon.legendary}', '${pokemon.description.replace(
+      /'/g,
+      "&apos;"
+    )}')">
+        En savoir plus
+      </button>
+    `;
+    container.appendChild(div);
+  });
+}
+
+async function loadPokemons(gen) {
+  const [start, end] = getGenerationRange(gen);
+  allPokemons = [];
+
+  for (let i = start; i <= end; i++) {
+    const pokemon = await fetchPokemon(i);
+    if (pokemon) {
+      allPokemons.push(pokemon);
+    }
+  }
+
+  displayPokemons(allPokemons);
+}
+
+searchInput.addEventListener("input", () => {
+  const query = searchInput.value.trim().toLowerCase();
+
+  if (query === "") {
+    displayPokemons(allPokemons);
+    return;
+  }
+
+  const filtered = allPokemons.filter((p) =>
+    p.name.toLowerCase().includes(query)
+  );
+
+  displayPokemons(filtered);
+});
+
+generationSelect.addEventListener("change", () => {
+  loadPokemons(generationSelect.value);
+});
+
+function openLightbox(name, types, region, legendary, description) {
+  lightboxTitle.textContent = name;
+  lightboxDescription.innerHTML = `
+    <strong>Type :</strong> ${types}<br>
+    <strong>Région :</strong> ${region}<br>
+    <strong>Statut :</strong> ${legendary}<br>
+    <strong>Description :</strong> ${description}
+  `;
+  lightbox.style.display = "flex";
+}
+
+function closeLightbox() {
+  lightbox.style.display = "none";
+}
+
+// Init
 loadPokemons(1);
-
-let sound = new Audio("../audio/combat.mp3");
-sound.play();
