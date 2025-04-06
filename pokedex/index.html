@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <link rel="icon" type="image/x-icon" href="../img/pikachu.png" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grille Pokémon</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <h1>Pokémon par Génération</h1>
+    <div class="search-container">
+      <input type="text" id="search" placeholder="Rechercher un Pokémon..." />
+      <select id="generation-select" class="generation-select">
+        <option value="1">Kanto</option>
+        <option value="2">Johto</option>
+        <option value="3">Hoenn</option>
+        <option value="4">Sinnoh</option>
+        <option value="5">Unys</option>
+        <option value="6">Kalos</option>
+        <option value="7">Alola</option>
+        <option value="8">Galar</option>
+        <option value="9">Paldea</option>
+      </select>
+    </div>
+    <div id="pokemon-container" class="grid"></div>
+
+    <div id="lightbox" class="lightbox">
+      <div class="lightbox-content">
+        <span class="close-btn" onclick="closeLightbox()">&times;</span>
+        <h2 id="lightbox-title"></h2>
+        <p id="lightbox-description"></p>
+      </div>
+    </div>
+
+    <script src="js/index.js"></script>
+  </body>
+</html>
